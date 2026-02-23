@@ -1,53 +1,67 @@
-<!DOCTYPE html>
-<html lang="en">
+@extends('layouts.auth')
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Inventory System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
+@section('title', 'Login')
 
-<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+@section('content')
+<div class="card shadow-sm" style="width: 400px;">
+    <div class="card-body p-4">
+        <h3 class="card-title text-center mb-4">Login System</h3>
 
-    <div class="card shadow-sm" style="width: 400px;">
-        <div class="card-body p-4">
-            <h3 class="card-title text-center mb-4">Login System</h3>
-
-            <form action="{{ route('login.post') }}" method="POST">
-                @csrf
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    <input type="text" class="form-control" id="username" name="username" required autofocus>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                </div>
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-primary">Masuk</button>
-                </div>
-            </form>
-        </div>
+        <form id="login-form">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">Login</button>
+            </div>
+        </form>
     </div>
+</div>
+@endsection
 
-    <script>
-        @if (session('error'))
-            Swal.fire({
-                icon: 'error',
-                title: 'Oops...',
-                text: "{{ session('error') }}",
-            });
-        @endif
-        @if (session('success'))
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil',
-                text: "{{ session('success') }}",
-            });
-        @endif
-    </script>
-</body>
+@section('script')
+<script>
+    $('form#login-form').submit(function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
 
-</html>
+        $.ajax({
+            type: 'POST',
+            url: BASE_URL + '/api/auth/login',
+            headers: {
+                'X-CSRF-TOKEN': TOKEN
+            },
+            data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function() {
+                showLoading('Please Wait!', 'Authenticating...');
+            },
+            success: function(res) {
+                Swal.close();
+                if (res.status === 'success') {
+                    showAlert('success', 'Success', res.message);
+                    setTimeout(function() {
+                        window.location.href = res.redirect;
+                    }, 1000);
+                }
+            },
+            error: function(xhr) {
+                Swal.close();
+                let errorMsg = 'An error occurred';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+                showAlert('error', 'Oops...', errorMsg);
+            }
+        });
+    });
+</script>
+@endsection

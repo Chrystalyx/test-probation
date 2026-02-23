@@ -1,24 +1,29 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\Web\Auth\AuthController;
+use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\Masters\InventoryController;
+use App\Http\Controllers\Web\Purchases\PurchaseController;
+use App\Http\Controllers\Web\Sales\SaleController;
 
 Route::get('/', [AuthController::class, 'index'])->name('login');
 Route::get('/login', [AuthController::class, 'index'])->name('login.form');
-Route::post('/login', [AuthController::class, 'authenticate'])->name('login.post');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/home', [DashboardController::class, 'index'])->name('home');
 
-    Route::resource('inventory', InventoryController::class)->except(['show', 'create', 'update']);
+    Route::controller(InventoryController::class)->middleware(\App\Http\Middleware\RoleMiddleware::class . ':SuperAdmin')->group(function () {
+        Route::get('/master/inventories', 'index')->name('inventories.index');
+    });
 
-    Route::resource('sales', SaleController::class);
+    Route::controller(PurchaseController::class)->middleware(\App\Http\Middleware\RoleMiddleware::class . ':SuperAdmin,Purchase,Manager')->group(function () {
+        Route::get('/purchases', 'index')->name('purchases.index');
+        Route::get('/purchases/form/{id?}', 'form')->name('purchases.form');
+    });
 
-    Route::resource('purchases', PurchaseController::class);
+    Route::controller(SaleController::class)->middleware(\App\Http\Middleware\RoleMiddleware::class . ':SuperAdmin,Sales,Manager')->group(function () {
+        Route::get('/sales', 'index')->name('sales.index');
+        Route::get('/sales/form/{id?}', 'form')->name('sales.form');
+    });
 });
