@@ -248,33 +248,76 @@ class Inventories extends Model
     {
         DB::beginTransaction();
 
-        if (isset($params['_token']) && $params['_token']) {
-            unset($params['_token']);
-        }
+        try {
+            if (isset($params['_token']) && $params['_token']) {
+                unset($params['_token']);
+            }
 
-        $fillable = (new self)->getFillable();
-        $data = array_intersect_key($params, array_flip($fillable));
+            $fillable = (new self)->getFillable();
+            $data = array_intersect_key($params, array_flip($fillable));
 
-        if (isset($params['id']) && $params['id']) {
-            self::where('id', $params['id'])->update($data);
+            if (isset($params['id']) && $params['id']) {
+                $existing = self::withTrashed()
+                    ->where('code', $data['code'] ?? '')
+                    ->where('id', '!=', $params['id'])
+                    ->first();
+
+                if ($existing) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Code "' . ($data['code'] ?? '') . '" already exists.'
+                    ], 400);
+                }
+
+                self::where('id', $params['id'])->update($data);
+
+                DB::commit();
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Successfully Updated Data',
+                    'data' => self::getById($params['id'])->original
+                ]);
+            }
+
+            $existing = self::withTrashed()->where('code', $data['code'] ?? '')->first();
+
+            if ($existing) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                    $existing->update($data);
+
+                    DB::commit();
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Successfully Restored and Updated Data',
+                        'data' => self::getById($existing->id)->original
+                    ]);
+                } else {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Code "' . ($data['code'] ?? '') . '" already exists.'
+                    ], 400);
+                }
+            }
+
+            $save = self::create($data);
 
             DB::commit();
-
             return response()->json([
                 'status' => 'success',
-                'message' => 'Successfully Updated Data',
-                'data' => self::getById($params['id'])->original
+                'message' => 'Successfully Added Data',
+                'data' => self::getById($save->id)->original
             ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
         }
-
-        $save = self::create($data);
-
-        DB::commit();
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Successfully Added Data',
-            'data' => self::getById($save->id)->original
-        ]);
     }
 
     public static function deleteById($id, $params, $request)
