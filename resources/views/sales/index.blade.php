@@ -131,7 +131,7 @@
         let id = $(this).data('id');
 
         $.ajax({
-            url: BASE_URL + "/api/" + endpoint + "/" + id,
+            url: BASE_URL + "/api/" + endpoint + "/" + id+'?with_details=true',
             type: 'GET',
             headers: {
 
@@ -152,7 +152,7 @@
                         let subtotal = item.qty * item.price;
                         total += subtotal;
                         html += '<tr>';
-                        html += '<td>' + item.inventory_code + ' - ' + item.inventory_name + '</td>';
+                        html += '<td>' + item.inventory?.code + ' - ' + item.inventory?.name + '</td>';
                         html += '<td>' + item.qty + '</td>';
                         html += '<td>' + formatNumber(item.price) + '</td>';
                         html += '<td>' + formatNumber(subtotal) + '</td>';

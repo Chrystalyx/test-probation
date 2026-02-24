@@ -73,38 +73,16 @@
 <script>
     let rowCount = 0;
     let endpoint = 'purchases';
-    let editId = '{{ $id }}';
-
-    $.ajax({
-        url: BASE_URL + "/api/inventories?all=true&order[id]=desc",
-        type: 'GET',
-        headers: {
-
-        },
-        dataType: 'JSON',
-        success: function(data) {
-            window.inventoryData = data.data || data || [];
-            $('select[name$="[inventory_id]"]').each(function() {
-                let currentVal = $(this).val() || $(this).attr('data-selected-id');
-                let options = '<option value="">-- Select Inventory --</option>';
-                window.inventoryData.forEach(function(item) {
-                    let isSelected = (item.id == currentVal) ? 'selected' : '';
-                    options += '<option value="' + item.id + '" ' + isSelected + '>' + item.code + ' - ' + item.name + '</option>';
-                });
-                $(this).html(options);
-            });
-        }
-    });
+    let isInventoryDataLoaded = false;
 
     $('#input-date').val(new Date().toISOString().split('T')[0]);
 
+    let editId = '{{ $id}}';
     if (editId) {
         $.ajax({
             url: BASE_URL + "/api/" + endpoint + "/" + editId,
             type: 'GET',
-            headers: {
-
-            },
+            headers: {},
             dataType: 'JSON',
             beforeSend: function() {
                 showLoading('Please Wait!', 'Loading data...');
@@ -121,6 +99,14 @@
                     });
                 }
                 hideLoading();
+            },
+            error: function(xhr) {
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: xhr.responseJSON?.message || 'Failed to load data'
+                });
             }
         });
     } else {
@@ -129,11 +115,28 @@
         rowCount++;
     }
 
+    function getInventoryItem(inventoryId) {
+        if (!Inventories || !Inventories.length) return null;
+        return Inventories.find(i => i.id == inventoryId) || null;
+    }
+
+    function updatePrice(rowIdx) {
+        let inventoryId = $('#input-inventory_id-' + rowIdx).val();
+        let qty = parseInt($('#input-qty-' + rowIdx).val()) || 0;
+        let item = getInventoryItem(inventoryId);
+
+        if (item && qty > 0) {
+            $('#input-price-' + rowIdx).val(qty * item.price);
+        } else if (qty === 0) {
+            $('#input-price-' + rowIdx).val('');
+        }
+    }
+
     function addRow(defaultValue) {
         let detailId = defaultValue?.id ?? '';
         let inventoryId = defaultValue?.inventory_id ?? '';
         let qtyVal = defaultValue?.qty ?? '';
-        let priceVal = defaultValue ? formatNumber(defaultValue?.price ?? 0) : '';
+        let priceVal = defaultValue?.price ?? '';
 
         let html = '';
 
@@ -141,27 +144,17 @@
         html += '    <input type="hidden" name="details[' + rowCount + '][id]" value="' + detailId + '">';
         html += '    <div class="col-md-4">';
         html += '        <label class="form-label">Inventory</label>';
-        html += '        <select class="form-select select2" name="details[' + rowCount + '][inventory_id]" id="input-inventory_id-' + rowCount + '">';
+        html += '        <select class="form-select select2" name="details[' + rowCount + '][inventory_id]" id="input-inventory_id-' + rowCount + '" data-selected-id="' + inventoryId + '">';
         html += '            <option value="">-- Select Inventory --</option>';
-
-        if (window.inventoryData) {
-            window.inventoryData.forEach(function(item) {
-                let selected = (item.id == inventoryId) ? 'selected' : '';
-                html += '            <option value="' + item.id + '" ' + selected + '>' + item.code + ' - ' + item.name + '</option>';
-            });
-        }
-
-        html = html.replace('<select ', '<select data-selected-id="' + inventoryId + '" ');
-
         html += '        </select>';
         html += '    </div>';
         html += '    <div class="col-md-2">';
         html += '        <label class="form-label">Qty</label>';
-        html += '        <input type="number" class="form-control" name="details[' + rowCount + '][qty]" id="input-qty-' + rowCount + '" value="' + qtyVal + '">';
+        html += '        <input type="number" class="form-control input-qty" name="details[' + rowCount + '][qty]" id="input-qty-' + rowCount + '" value="' + qtyVal + '" min="1">';
         html += '    </div>';
         html += '    <div class="col-md-3">';
         html += '        <label class="form-label">Price</label>';
-        html += '        <input type="number" class="form-control" name="details[' + rowCount + '][price]" id="input-price-' + rowCount + '" value="' + (defaultValue?.price ?? '') + '">';
+        html += '        <input type="number" class="form-control" name="details[' + rowCount + '][price]" id="input-price-' + rowCount + '" value="' + priceVal + '" readonly>';
         html += '    </div>';
         html += '    <div class="col-md-1 d-flex align-items-end">';
         html += '        <button type="button" class="btn btn-outline-danger btn-sm w-100 remove-detail" data-index="' + rowCount + '">';
@@ -171,21 +164,39 @@
         html += '</div>';
 
         $('#detail-wrapper').append(html);
+
+        if (!isInventoryDataLoaded) {
+            getInventories({
+                element: '#input-inventory_id-' + rowCount
+            }, () => {
+                isInventoryDataLoaded = true;
+            })
+        } else {
+            buildInventories('#input-inventory_id-' + rowCount, inventoryId);
+        }
+
         $('#input-inventory_id-' + rowCount).select2({
             theme: 'bootstrap-5',
             width: '100%'
         }).on('change', function() {
-            let selectedId = $(this).val();
             let rowIdx = $(this).attr('id').split('-').pop();
-
-            if (selectedId && window.inventoryData) {
-                let selectedItem = window.inventoryData.find(i => i.id == selectedId);
-                if (selectedItem) {
-                    $('#input-price-' + rowIdx).val(selectedItem.price);
+            let qty = parseInt($('#input-qty-' + rowIdx).val()) || 0;
+            if (qty > 0) {
+                updatePrice(rowIdx);
+            } else {
+                let selectedId = $(this).val();
+                let item = getInventoryItem(selectedId);
+                if (item) {
+                    $('#input-price-' + rowIdx).val(item.price);
                 }
             }
         });
     }
+
+    $(document).on('input', '.input-qty', function() {
+        let rowIdx = $(this).attr('id').split('-').pop();
+        updatePrice(rowIdx);
+    });
 
     $(document).on('click', '#btn-add_detail', function() {
         addRow();
@@ -205,9 +216,7 @@
         $.ajax({
             type: 'post',
             url: BASE_URL + "/api/" + endpoint,
-            headers: {
-
-            },
+            headers: {},
             data: formData,
             cache: false,
             contentType: false,
@@ -218,6 +227,15 @@
             },
             success: function(res) {
                 showAlertOnSubmitWithRedirect(res, "{{ route('purchases.index') }}");
+            },
+            error: function(xhr) {
+                hideLoading();
+                let msg = xhr.responseJSON?.message || 'An error occurred while saving data.';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: msg
+                });
             }
         });
     });

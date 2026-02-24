@@ -87,6 +87,10 @@ class PurchaseDetails extends Model
     // Functions ...
 
     // Relations ...
+    public function inventory()
+    {
+        return $this->hasOne(Inventories::class, 'id', 'inventory_id');
+    }
 
     public static function mapSchema($params = [], $user = [])
     {

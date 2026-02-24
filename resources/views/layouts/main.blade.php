@@ -66,6 +66,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script>
+        let Inventories = [];
+
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -227,7 +229,8 @@
 
                     if (data && data.length > 0) {
                         data.forEach(function(item) {
-                            element.append('<option value="' + item.id + '">' + item.code + ' - ' + item.name + '</option>');
+                            element.append('<option value="' + item.id + '">' + item.code + ' - ' + item
+                                .name + '</option>');
                         });
                     }
 
@@ -240,6 +243,44 @@
                     }
                 }
             });
+        }
+
+        function getInventories(params, callback = null) {
+
+            let element = params['element'],
+                isAsync = params['is_async'] ?? true,
+                selectedVal = params['selected_val'] ?? '',
+                filter = params['filter'] ?? '';
+            $.ajax({
+                url: BASE_URL + "/api/inventories?all=true&order[id]=desc" + filter,
+                type: 'GET',
+                headers: {
+                    'Authorization': TOKEN
+                },
+                dataType: 'JSON',
+                async: isAsync,
+                success: function(res, textStatus, jqXHR) {
+                    Inventories = res;
+                    if (element != '' && element != undefined && element != null) {
+                        buildInventories(element, selectedVal);
+                    }
+                    callback && callback(Inventories);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {},
+            });
+        }
+
+        function buildInventories(element, selectedVal = "") {
+            let html = ''
+            html += '<option value="">-- Select Inventory --</option>'
+            $.each(Inventories, function(index, item) {
+                if (selectedVal == item.id) {
+                    html += '<option value="' + item.id + '" selected>' + item.name + '</option>'
+                } else {
+                    html += '<option value="' + item.id + '">' + item.name + '</option>'
+                }
+            })
+            $(element).html(html)
         }
 
         $(document).on('click', '#btn-logout', function() {
@@ -268,14 +309,14 @@
     </script>
 
     @if (session('success'))
-    <script>
-        showAlert('success', 'Success', "{{ session('success') }}");
-    </script>
+        <script>
+            showAlert('success', 'Success', "{{ session('success') }}");
+        </script>
     @endif
     @if (session('error'))
-    <script>
-        showAlert('error', 'Error', "{{ session('error') }}");
-    </script>
+        <script>
+            showAlert('error', 'Error', "{{ session('error') }}");
+        </script>
     @endif
 
     @yield('script')

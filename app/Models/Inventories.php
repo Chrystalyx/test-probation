@@ -252,8 +252,11 @@ class Inventories extends Model
             unset($params['_token']);
         }
 
+        $fillable = (new self)->getFillable();
+        $data = array_intersect_key($params, array_flip($fillable));
+
         if (isset($params['id']) && $params['id']) {
-            self::where('id', $params['id'])->update($params);
+            self::where('id', $params['id'])->update($data);
 
             DB::commit();
 
@@ -264,7 +267,7 @@ class Inventories extends Model
             ]);
         }
 
-        $save = self::create($params);
+        $save = self::create($data);
 
         DB::commit();
         return response()->json([

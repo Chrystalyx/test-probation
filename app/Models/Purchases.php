@@ -90,7 +90,7 @@ class Purchases extends Model
     // Relations ...
     public function details(): HasMany
     {
-        return $this->hasMany(PurchaseDetails::class, 'purchase_id');
+        return $this->hasMany(PurchaseDetails::class, 'purchase_id', 'id');
     }
 
     public static function mapSchema($params = [], $user = [])
@@ -199,7 +199,7 @@ class Purchases extends Model
         if ($result) {
             $result->details = PurchaseDetails::where('purchase_id', $id)
                 ->join('inventories', 'inventories.id', '=', 'purchase_details.inventory_id')
-                ->select('purchase_details.*', 'inventories.name as inventory_name', 'inventories.code as inventory_code')
+                ->select('purchase_details.*', 'inventories.name as inventory_name', 'inventories.code as inventory_code', 'inventories.price as unit_price', 'inventories.stock as inventory_stock')
                 ->get();
         }
 

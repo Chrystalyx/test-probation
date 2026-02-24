@@ -156,7 +156,7 @@
             type: 'post',
             url: BASE_URL + "/api/" + endpoint,
             headers: {
-                
+
             },
             data: formData,
             cache: false,
@@ -169,6 +169,15 @@
             success: function(res) {
                 hideLoading();
                 showAlertOnSubmit(res, '#form-modal', '#main-table');
+            },
+            error: function(xhr) {
+                hideLoading();
+                let msg = xhr.responseJSON?.message || 'An error occurred while saving data.';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: msg
+                });
             }
         });
     });
@@ -182,7 +191,7 @@
             url: BASE_URL + "/api/" + endpoint + "/" + id,
             type: 'GET',
             headers: {
-                
+
             },
             dataType: 'JSON',
             beforeSend: function() {
